@@ -7,7 +7,7 @@ defmodule Util.ProtoTest do
 
   test "simple test - no args" do
     assert Util.Proto.deep_new(SimpleProto, %{}) ==
-      %TestHelpers.SimpleProto{bool_value: false, int_value: 0, string_value: "",
+      %SimpleProto{bool_value: false, int_value: 0, string_value: "",
         float_value: 0, repeated_string: []}
   end
 
@@ -64,25 +64,57 @@ defmodule Util.ProtoTest do
   end
 
   test "nested test - SimpleProto field - non empty map, non empty list" do
-    assert %TestHelpers.NestedProto{simple_proto: simple_proto, rsp: rsp} =
+    assert %NestedProto{simple_proto: simple_proto, rsp: rsp} =
       Util.Proto.deep_new(
         NestedProto, %{simple_proto: %{int_value: 3}, rsp: [%{bool_value: true}]})
 
-    assert simple_proto == %TestHelpers.SimpleProto{
+    assert simple_proto == %SimpleProto{
       bool_value: false, int_value: 3, string_value: "", float_value: 0, repeated_string: []}
-    assert rsp == [%TestHelpers.SimpleProto{
+    assert rsp == [%SimpleProto{
       bool_value: true, int_value: 0, string_value: "", float_value: 0, repeated_string: []}]
+  end
+  
+  test "annonymous user transform function is called" do
+    fun =  fn name, _args -> %{int_value: 123, bool_value: true, string_value: name |> to_string()} end
+    
+    assert %NestedProto{simple_proto: simple_proto, rsp: rsp} = 
+      Util.Proto.deep_new(
+         NestedProto, 
+         %{simple_proto: %{int_value: 3, bool_value: false}, rsp: [%{bool_value: false}]},
+         transformations: %{SimpleProto => fun})
+         
+     assert simple_proto == %SimpleProto{
+       bool_value: true, int_value: 123, string_value: "simple_proto", float_value: 0, repeated_string: []}
+     assert rsp == [%SimpleProto{
+       bool_value: true, int_value: 123, string_value: "rsp", float_value: 0, repeated_string: []}]
+  end
+  
+  test "named user transform function is called" do    
+    assert %NestedProto{simple_proto: simple_proto, rsp: rsp} = 
+      Util.Proto.deep_new(
+         NestedProto, 
+         %{simple_proto: %{int_value: 3, bool_value: false}, rsp: [%{bool_value: false}]},
+         transformations: %{SimpleProto => {Util.ProtoTest, :named_function}})
+         
+     assert simple_proto == %SimpleProto{
+       bool_value: true, int_value: 123, string_value: "simple_proto", float_value: 0, repeated_string: []}
+     assert rsp == [%SimpleProto{
+       bool_value: true, int_value: 123, string_value: "rsp", float_value: 0, repeated_string: []}]
+  end
+  
+  def named_function(name, _args) do
+    %{int_value: 123, bool_value: true, string_value: name |> to_string()}
   end
 
   test "enum - no args" do
-    assert Util.Proto.deep_new(EnumProto, %{}) == %TestHelpers.EnumProto{code: 0, codes: []}
+    assert Util.Proto.deep_new(EnumProto, %{}) == %EnumProto{code: 0, codes: []}
   end
 
   test "enum - code" do
-    assert Util.Proto.deep_new(EnumProto, %{code: :Error}) == %TestHelpers.EnumProto{code: 1, codes: []}
+    assert Util.Proto.deep_new(EnumProto, %{code: :Error}) == %EnumProto{code: 1, codes: []}
   end
 
   test "enum - codes" do
-    assert Util.Proto.deep_new(EnumProto, %{codes: [:Error, :OK]}) == %TestHelpers.EnumProto{code: 0, codes: [1, 0]}
+    assert Util.Proto.deep_new(EnumProto, %{codes: [:Error, :OK]}) == %EnumProto{code: 0, codes: [1, 0]}
   end
 end

@@ -1,19 +1,25 @@
 .PHONY: console test
 
 USER=dev
+MIX_ENV=dev
 HOME_DIR=/home/dev
-WORKDIR=$(HOME_DIR)/pipelines
+WORKDIR=$(HOME_DIR)/elixir-util
 INTERACTIVE_SESSION=\
           -v $$PWD/home_dir:$(HOME_DIR) \
-          -v $$PWD/..:$(WORKDIR) \
+          -v $$PWD/:$(WORKDIR) \
           -e HOME=$(HOME_DIR) \
           -e MIX_ENV=test \
-          --workdir=$(WORKDIR)/util \
+          --workdir=$(WORKDIR) \
           -it renderedtext/elixir-dev:1.5.1-v2 \
+					
+CONTAINER_ENV_VARS= \
+	-e MIX_ENV=$(MIX_ENV)\
+  --user=$(USER)
+	
+CMD?=/bin/bash
 
 console:
-	docker run $(INTERACTIVE_SESSION) /bin/bash
+	docker run --network=host $(CONTAINER_ENV_VARS) $(INTERACTIVE_SESSION) $(CMD)
 
 test:
-	docker run --user=$(USER) $(INTERACTIVE_SESSION) \
-          mix do local.hex --force, local.rebar --force, deps.get, test
+	$(MAKE) console USER=root MIX_ENV=test CMD="mix do local.hex --force, local.rebar --force, deps.get, test"
