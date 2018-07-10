@@ -6,49 +6,49 @@ defmodule Util.ProtoTest do
 
 
   test "simple test - no args" do
-    assert Util.Proto.deep_new(SimpleProto, %{}) ==
+    assert Util.Proto.deep_new!(SimpleProto, %{}) ==
       %SimpleProto{bool_value: false, int_value: 0, string_value: "",
         float_value: 0, repeated_string: []}
   end
 
   test "simple test - bool arg" do
-    assert Util.Proto.deep_new(SimpleProto, %{bool_value: true}) ==
+    assert Util.Proto.deep_new!(SimpleProto, %{bool_value: true}) ==
       %TestHelpers.SimpleProto{bool_value: true, int_value: 0, string_value: "",
         float_value: 0, repeated_string: []}
   end
 
   test "simple test - int arg" do
-    assert Util.Proto.deep_new(SimpleProto, %{int_value: 2}) ==
+    assert Util.Proto.deep_new!(SimpleProto, %{int_value: 2}) ==
       %TestHelpers.SimpleProto{bool_value: false, int_value: 2, string_value: "",
       float_value: 0, repeated_string: []}
   end
 
   test "simple test - float arg" do
-    assert Util.Proto.deep_new(SimpleProto, %{float_value: 2.34}) ==
+    assert Util.Proto.deep_new!(SimpleProto, %{float_value: 2.34}) ==
       %TestHelpers.SimpleProto{bool_value: false, int_value: 0, string_value: "",
       float_value: 2.34, repeated_string: []}
   end
 
   test "simple test - string arg" do
-    assert Util.Proto.deep_new(SimpleProto, %{string_value: "2"}) ==
+    assert Util.Proto.deep_new!(SimpleProto, %{string_value: "2"}) ==
       %TestHelpers.SimpleProto{bool_value: false, int_value: 0, string_value: "2",
       float_value: 0, repeated_string: []}
   end
 
   test "simple test - repeated field - 0 elements" do
-    assert Util.Proto.deep_new(SimpleProto, %{repeated_string: []}) ==
+    assert Util.Proto.deep_new!(SimpleProto, %{repeated_string: []}) ==
     %TestHelpers.SimpleProto{bool_value: false, int_value: 0, string_value: "",
     float_value: 0, repeated_string: []}
   end
 
   test "simple test - repeated field - 1 element" do
-    assert Util.Proto.deep_new(SimpleProto, %{repeated_string: ["as"]}) ==
+    assert Util.Proto.deep_new!(SimpleProto, %{repeated_string: ["as"]}) ==
     %TestHelpers.SimpleProto{bool_value: false, int_value: 0, string_value: "",
     float_value: 0, repeated_string: ["as"]}
   end
 
   test "simple test - repeated field - 2 elements" do
-    assert Util.Proto.deep_new(SimpleProto, %{repeated_string: ["as", "qw"]}) ==
+    assert Util.Proto.deep_new!(SimpleProto, %{repeated_string: ["as", "qw"]}) ==
     %TestHelpers.SimpleProto{bool_value: false, int_value: 0, string_value: "",
     float_value: 0, repeated_string: ["as", "qw"]}
   end
@@ -56,7 +56,7 @@ defmodule Util.ProtoTest do
 
   test "nested test - SimpleProto field - empty map, empty list" do
     assert %TestHelpers.NestedProto{simple_proto: simple_proto, rsp: rsp} =
-      Util.Proto.deep_new(NestedProto, %{simple_proto: %{}})
+      Util.Proto.deep_new!(NestedProto, %{simple_proto: %{}})
 
     assert simple_proto == %TestHelpers.SimpleProto{
       bool_value: false, int_value: 0, string_value: "", float_value: 0, repeated_string: []}
@@ -65,7 +65,7 @@ defmodule Util.ProtoTest do
 
   test "nested test - SimpleProto field - non empty map, non empty list" do
     assert %NestedProto{simple_proto: simple_proto, rsp: rsp} =
-      Util.Proto.deep_new(
+      Util.Proto.deep_new!(
         NestedProto, %{simple_proto: %{int_value: 3}, rsp: [%{bool_value: true}]})
 
     assert simple_proto == %SimpleProto{
@@ -73,48 +73,59 @@ defmodule Util.ProtoTest do
     assert rsp == [%SimpleProto{
       bool_value: true, int_value: 0, string_value: "", float_value: 0, repeated_string: []}]
   end
-  
+
   test "annonymous user transform function is called" do
     fun =  fn name, _args -> %{int_value: 123, bool_value: true, string_value: name |> to_string()} end
-    
-    assert %NestedProto{simple_proto: simple_proto, rsp: rsp} = 
-      Util.Proto.deep_new(
-         NestedProto, 
+
+    assert %NestedProto{simple_proto: simple_proto, rsp: rsp} =
+      Util.Proto.deep_new!(
+         NestedProto,
          %{simple_proto: %{int_value: 3, bool_value: false}, rsp: [%{bool_value: false}]},
          transformations: %{SimpleProto => fun})
-         
+
      assert simple_proto == %SimpleProto{
        bool_value: true, int_value: 123, string_value: "simple_proto", float_value: 0, repeated_string: []}
      assert rsp == [%SimpleProto{
        bool_value: true, int_value: 123, string_value: "rsp", float_value: 0, repeated_string: []}]
   end
-  
-  test "named user transform function is called" do    
-    assert %NestedProto{simple_proto: simple_proto, rsp: rsp} = 
-      Util.Proto.deep_new(
-         NestedProto, 
+
+  test "named user transform function is called" do
+    assert %NestedProto{simple_proto: simple_proto, rsp: rsp} =
+      Util.Proto.deep_new!(
+         NestedProto,
          %{simple_proto: %{int_value: 3, bool_value: false}, rsp: [%{bool_value: false}]},
          transformations: %{SimpleProto => {Util.ProtoTest, :named_function}})
-         
+
      assert simple_proto == %SimpleProto{
        bool_value: true, int_value: 123, string_value: "simple_proto", float_value: 0, repeated_string: []}
      assert rsp == [%SimpleProto{
        bool_value: true, int_value: 123, string_value: "rsp", float_value: 0, repeated_string: []}]
   end
-  
+
   def named_function(name, _args) do
     %{int_value: 123, bool_value: true, string_value: name |> to_string()}
   end
 
   test "enum - no args" do
-    assert Util.Proto.deep_new(EnumProto, %{}) == %EnumProto{code: 0, codes: []}
+    assert Util.Proto.deep_new!(EnumProto, %{}) == %EnumProto{code: 0, codes: []}
   end
 
   test "enum - code" do
-    assert Util.Proto.deep_new(EnumProto, %{code: :Error}) == %EnumProto{code: 1, codes: []}
+    assert Util.Proto.deep_new!(EnumProto, %{code: :Error}) == %EnumProto{code: 1, codes: []}
   end
 
   test "enum - codes" do
-    assert Util.Proto.deep_new(EnumProto, %{codes: [:Error, :OK]}) == %EnumProto{code: 0, codes: [1, 0]}
+    assert Util.Proto.deep_new!(EnumProto, %{codes: [:Error, :OK]}) == %EnumProto{code: 0, codes: [1, 0]}
+  end
+
+  test "{:ok, state}" do
+    assert Util.Proto.deep_new(SimpleProto, %{bool_value: true}) ==
+      {:ok, %TestHelpers.SimpleProto{bool_value: true, int_value: 0, string_value: "",
+        float_value: 0, repeated_string: []}}
+  end
+
+  test "{:error, reason}" do
+    assert Util.Proto.deep_new(SimpleProto, %{bool_value: 12}) ==
+      {:error, %RuntimeError{message: "Field: 'bool_value': Expected boolean argument, got '12'"}}
   end
 end
