@@ -128,4 +128,17 @@ defmodule Util.ProtoTest do
     assert Util.Proto.deep_new(SimpleProto, %{bool_value: 12}) ==
       {:error, %RuntimeError{message: "Field: 'bool_value': Expected boolean argument, got '12'"}}
   end
+
+  test "string_keys_to_atoms" do
+    assert %NestedProto{simple_proto: simple_proto, rsp: rsp} =
+      Util.Proto.deep_new!(
+         NestedProto,
+         %{"simple_proto" => %{"int_value" => 3, "bool_value" => true}, "rsp" => [%{string_value: "test"}]},
+         string_keys_to_atoms: true)
+
+     assert simple_proto == %SimpleProto{
+       bool_value: true, int_value: 3, string_value: "", float_value: 0, repeated_string: []}
+     assert rsp == [%SimpleProto{
+       bool_value: false, int_value: 0, string_value: "test", float_value: 0, repeated_string: []}]
+  end
 end
