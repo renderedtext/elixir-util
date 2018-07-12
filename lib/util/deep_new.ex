@@ -14,6 +14,9 @@ defmodule Util.Proto do
   parameters.
 
   Options filed parameters:
+  - string_keys_to_atoms:
+    If value of this field is true, any Map key which is string in passed arguments
+    map and all nested maps will be automatically transformed into atom.
   - transformations:
      Map where keys should be module names, and values user provided
      functions, given either as annonymous functions or tuple
@@ -94,6 +97,13 @@ defmodule Util.Proto do
     args |> Enum.map(&init_property(struct, &1, opts))
   end
 
+  defp init_property(struct, {name, value}, opts) when is_binary(name)  do
+    if Keyword.get(opts, :string_keys_to_atoms, false) do
+      init_property(struct, {String.to_atom(name), value}, opts)
+    else
+      {name, value}
+    end
+  end
   defp init_property(struct, {name, value}, opts) do
     props = struct |> apply(:__message_props__, [])
     props
