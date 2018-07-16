@@ -44,6 +44,38 @@ defmodule Util.Proto do
 
   def deep_new!(struct, args, opts \\ []), do: do_deep_new(args, struct, "", opts)
 
+  def to_map(proto) do
+    {:ok, to_map!(proto)}
+  rescue
+    e -> {:error, e}
+  end
+
+  def to_map!(proto), do: decode_value(proto)
+
+  defp decode_value(%struct{} = value) do
+    decoded_value = value |> Map.from_struct |> decode_value
+
+    struct.__message_props__.field_props
+    |> Enum.reduce(%{}, &decode_enum_value(&1, &2, decoded_value))
+  end
+  defp decode_value(%{} = value),
+    do: value |> Map.to_list |> decode_value |> Enum.into(%{})
+  defp decode_value(value) when is_list(value),
+    do: Enum.map(value, &decode_value(&1))
+  defp decode_value({key, value}), do: {key, decode_value(value)}
+  defp decode_value(value),        do: value
+
+  defp decode_enum_value({_k, %{enum?: true, repeated?: false} = v}, acc, decoded_value) do
+    field = decoded_value[v.name_atom]
+
+    Map.put(acc, v.name_atom, apply(v.enum_type, :key, [field]))
+  end
+  defp decode_enum_value({_k, v}, acc, decoded_value) do
+    Map.put(acc, v.name_atom, decoded_value[v.name_atom])
+  end
+
+######################
+
   defp do_deep_new(args, struct, name, opts)
     when (is_list(args) or is_map(args) or is_nil(args))
           and (not struct in @proto_basic_types) do
