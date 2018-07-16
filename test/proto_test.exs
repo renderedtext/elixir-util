@@ -143,17 +143,17 @@ defmodule Util.ProtoTest do
   end
 
   test "EnumProto to_map - no args" do
-    assert(TestHelpers.EnumProto.new |> Util.Proto.to_map! == %{code: 0, codes: []})
+    assert(TestHelpers.EnumProto.new |> Util.Proto.to_map! == %{code: :OK, codes: []})
   end
 
   test "EnumProto to_map - code" do
-    assert(TestHelpers.EnumProto.new(%{code: 1}) |> Util.Proto.to_map! == %{code: 1, codes: []})
+    assert(TestHelpers.EnumProto.new(%{code: 1}) |> Util.Proto.to_map! == %{code: :Error, codes: []})
   end
 
   test "EnumProto to_map - codes" do
-    a = TestHelpers.EnumProto.new()
+    a = TestHelpers.EnumProto.new() #|> Util.Proto.to_map
     assert(%{codes: [a, a, a]} |> TestHelpers.EnumProto.new() |> Util.Proto.to_map! ==
-      %{code: 0, codes: [%{code: 0, codes: []}, %{code: 0, codes: []}, %{code: 0, codes: []}]}
+      %{code: :OK, codes: [%{code: :OK, codes: []}, %{code: :OK, codes: []}, %{code: :OK, codes: []}]}
     )
   end
 
