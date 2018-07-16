@@ -44,6 +44,25 @@ defmodule Util.Proto do
 
   def deep_new!(struct, args, opts \\ []), do: do_deep_new(args, struct, "", opts)
 
+  def to_map(proto) do
+    {:ok, to_map!(proto)}
+  rescue
+    e -> {:error, e}
+  end
+
+  def to_map!(proto), do: decode_value(proto)
+
+
+  defp decode_value(%_{} = value), do: value |> Map.from_struct |> decode_value
+  defp decode_value(%{} = value),  do: value |> Map.to_list     |> decode_value |> Enum.into(%{})
+  defp decode_value(value) when is_list(value), do: Enum.map(value, &decode_value(&1))
+  defp decode_value({key, value}), do: {key, decode_value(value)}
+  defp decode_value(value),        do: value
+
+  defp l(v, label), do: IO.inspect(v, label: label)
+
+######################
+
   defp do_deep_new(args, struct, name, opts)
     when (is_list(args) or is_map(args) or is_nil(args))
           and (not struct in @proto_basic_types) do
