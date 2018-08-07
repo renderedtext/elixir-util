@@ -55,4 +55,17 @@ defmodule TestHelpers do
     field :Ambiguous, 2
   end
 
+  defmodule NestedEnumProto do
+    use Protobuf, syntax: :proto3
+
+    @type t :: %__MODULE__{
+      enum_message:  TestHelpers.EnumProto.t,
+      string_val: String.t
+    }
+    defstruct [:enum_message, :string_val]
+
+    field :enum_message, 1, type: TestHelpers.EnumProto
+    field :string_val, 2, repeated: false, type: :string
+  end
+
 end

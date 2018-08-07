@@ -188,6 +188,7 @@ defmodule Util.Proto do
     |> apply(:__message_props__, [])
     |> enum_atom2int(value, name)
   end
+  defp set_enum_value(value, _enum_type, _name) when is_integer(value), do: value
 
   defp enum_atom2int(enum_type_props, value, name) do
     case enum_type_props.field_tags[value] do
