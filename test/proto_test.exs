@@ -2,7 +2,7 @@ defmodule Util.ProtoTest do
 
   use ExUnit.Case
 
-  alias TestHelpers.{SimpleProto, NestedProto, EnumProto}
+  alias TestHelpers.{SimpleProto, NestedProto, EnumProto, NestedEnumProto}
 
 
   test "simple test - no args" do
@@ -116,6 +116,16 @@ defmodule Util.ProtoTest do
 
   test "enum - codes" do
     assert Util.Proto.deep_new!(EnumProto, %{codes: [:Error, :OK]}) == %EnumProto{code: 0, codes: [1, 0]}
+  end
+
+  test "nested enum - int values" do
+    assert Util.Proto.deep_new!(NestedEnumProto, %{enum_message: %{code: 0, codes: [0, 1]}})
+           == %NestedEnumProto{enum_message: %EnumProto{code: 0, codes: [0, 1]}, string_val: ""}
+  end
+
+  test "nested enum - atom values" do
+    assert Util.Proto.deep_new!(NestedEnumProto, %{enum_message: %{code: :Error, codes: [:OK, :Error]}})
+           == %NestedEnumProto{enum_message: %EnumProto{code: 1, codes: [0, 1]}, string_val: ""}
   end
 
   test "{:ok, state}" do
