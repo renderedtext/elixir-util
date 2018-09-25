@@ -44,35 +44,50 @@ defmodule Util.Proto do
 
   def deep_new!(struct, args, opts \\ []), do: do_deep_new(args, struct, "", opts)
 
-  def to_map(proto) do
-    {:ok, to_map!(proto)}
+
+######################
+
+  @doc """
+  Transforms proto message struct into elixir map and transforms values for all
+  enum fields into atoms instead of integers.
+  It returns map with atom keys unleas 'string_keys' optional parameter is set
+  on true, in which case resulting map will have string keys.
+  """
+  def to_map(proto, opts \\ []) do
+    {:ok, to_map!(proto, opts)}
   rescue
     e -> {:error, e}
   end
 
-  def to_map!(proto), do: decode_value(proto)
+  def to_map!(proto, opts \\ []), do: decode_value(proto, opts)
 
-  defp decode_value(%struct{} = value) do
-    decoded_value = value |> Map.from_struct |> decode_value
+  defp decode_value(%struct{} = value, opts) do
+    decoded_value = value |> Map.from_struct |> decode_value(opts)
 
     struct.__message_props__.field_props
-    |> Enum.reduce(%{}, &decode_enum_value(&1, &2, decoded_value))
+    |> Enum.reduce(%{}, &decode_enum_value(&1, &2, decoded_value, opts))
   end
-  defp decode_value(%{} = value),
-    do: value |> Map.to_list |> decode_value |> Enum.into(%{})
-  defp decode_value(value) when is_list(value),
-    do: Enum.map(value, &decode_value(&1))
-  defp decode_value({key, value}), do: {key, decode_value(value)}
-  defp decode_value(value),        do: value
+  defp decode_value(%{} = value, opts),
+    do: value |> Map.to_list |> decode_value(opts) |> Enum.into(%{})
+  defp decode_value(value, opts) when is_list(value),
+    do: Enum.map(value, &decode_value(&1, opts))
+  defp decode_value({key, value}, opts),
+    do: {to_string?(key, opts), decode_value(value, opts)}
+  defp decode_value(value, _opts),  do: value
 
-  defp decode_enum_value({_k, %{enum?: true, repeated?: false} = v}, acc, decoded_value) do
-    field = decoded_value[v.name_atom]
+  defp decode_enum_value({_k, %{enum?: true, repeated?: false} = v}, acc, decoded_value, opts) do
+    key = to_string?(v.name_atom, opts)
+    int_val = decoded_value[key]
+    atom_value = apply(v.enum_type, :key, [int_val])
+    Map.put(acc, key, atom_value)
+  end
+  defp decode_enum_value({_k, v}, acc, decoded_value, opts) do
+    key = to_string?(v.name_atom, opts)
+    Map.put(acc, key, decoded_value[key])
+  end
 
-    Map.put(acc, v.name_atom, apply(v.enum_type, :key, [field]))
-  end
-  defp decode_enum_value({_k, v}, acc, decoded_value) do
-    Map.put(acc, v.name_atom, decoded_value[v.name_atom])
-  end
+  defp to_string?(key, [string_keys: true]), do: Atom.to_string(key)
+  defp to_string?(key, _opts), do: key
 
 ######################
 
