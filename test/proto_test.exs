@@ -185,4 +185,48 @@ defmodule Util.ProtoTest do
       %{rsp: [%{bool_value: false, float_value: 0.0, int_value: 0, repeated_string: [], string_value: ""}], simple_proto: nil}
     )
   end
+
+  test "EnumProto to_map string_keys - no args" do
+    assert(TestHelpers.EnumProto.new |> Util.Proto.to_map!(string_keys: true)
+      == %{"code" => :OK, "codes" => []})
+  end
+
+  test "EnumProto to_map string_keys - code" do
+    assert(TestHelpers.EnumProto.new(%{code: 1}) |> Util.Proto.to_map!(string_keys: true)
+      == %{"code" => :Error, "codes" => []})
+  end
+
+  test "EnumProto to_map string_keys - codes" do
+    a = TestHelpers.EnumProto.new() #|> Util.Proto.to_map
+    assert(%{codes: [a, a, a]}
+           |> TestHelpers.EnumProto.new()
+           |> Util.Proto.to_map!(string_keys: true) ==
+      %{"code" => :OK, "codes" => [%{"code" => :OK, "codes" => []},
+      %{"code" => :OK, "codes" => []}, %{"code" => :OK, "codes" => []}]}
+    )
+  end
+
+  test "SimpleProto to_map string_keys" do
+    assert(TestHelpers.SimpleProto.new(%{code: 1}) |> Util.Proto.to_map!(string_keys: true) ==
+      %{"bool_value" => false, "float_value" => 0.0, "int_value" => 0,
+        "repeated_string" => [], "string_value" => ""}
+    )
+  end
+
+  test "NestedProto to_map string_keys - simple_proto" do
+    assert(Util.Proto.deep_new!(TestHelpers.NestedProto, %{simple_proto: %{}})
+          |> Util.Proto.to_map!(string_keys: true) ==
+      %{"rsp" => [], "simple_proto" => %{"bool_value" => false, "float_value" => 0.0,
+        "int_value" => 0, "repeated_string" => [], "string_value" => ""}}
+    )
+  end
+
+  test "NestedProto to_map string_keys - repeated simple_proto" do
+    sp = %{simple_proto: %{}}
+    assert(Util.Proto.deep_new!(TestHelpers.NestedProto, %{rsp: [sp]})
+           |> Util.Proto.to_map!(string_keys: true) ==
+      %{"rsp" => [%{"bool_value" => false, "float_value" => 0.0, "int_value" => 0,
+        "repeated_string" => [], "string_value" => ""}], "simple_proto" => nil}
+    )
+  end
 end
