@@ -59,7 +59,9 @@ defmodule Util.Proto do
     e -> {:error, e}
   end
 
-  def to_map!(proto, opts \\ []), do: decode_value(proto, opts)
+  def to_map!(proto, opts \\ [])
+  def to_map!(proto = %{__struct__: _}, opts), do: decode_value(proto, opts)
+  def to_map!(proto, _opts), do: raise("Not a valid Proto struct: #{inspect proto}")
 
   defp decode_value(%struct{} = value, opts) do
     decoded_value = value |> Map.from_struct |> decode_value(opts)
