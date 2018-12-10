@@ -152,6 +152,10 @@ defmodule Util.ProtoTest do
        bool_value: false, int_value: 0, string_value: "test", float_value: 0, repeated_string: []}]
   end
 
+  test "to_map - error when something other then struct is passed" do
+    assert("123" |> Util.Proto.to_map == {:error, %RuntimeError{message: "Not a valid Proto struct: \"123\""}})
+  end
+
   test "EnumProto to_map - no args" do
     assert(TestHelpers.EnumProto.new |> Util.Proto.to_map! == %{code: :OK, codes: []})
   end
