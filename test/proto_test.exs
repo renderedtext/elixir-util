@@ -4,6 +4,11 @@ defmodule Util.ProtoTest do
 
   alias TestHelpers.{SimpleProto, NestedProto, EnumProto, NestedEnumProto}
 
+  test "simple test - no args - args first" do
+    assert %{} |> Util.Proto.deep_new!(SimpleProto) ==
+      %SimpleProto{bool_value: false, int_value: 0, string_value: "",
+        float_value: 0, repeated_string: []}
+  end
 
   test "simple test - no args" do
     assert Util.Proto.deep_new!(SimpleProto, %{}) ==
@@ -63,11 +68,23 @@ defmodule Util.ProtoTest do
     assert rsp == []
   end
 
+  test "nested test - SimpleProto field - non empty map, non empty list - args first" do
+    assert %NestedProto{simple_proto: simple_proto, rsp: rsp} =
+      %{simple_proto: %{int_value: 3}, rsp: [%{bool_value: true}]}
+      |> Util.Proto.deep_new!(NestedProto)
+
+      simple_proto_non_empty_assert(simple_proto, rsp)
+  end
+
   test "nested test - SimpleProto field - non empty map, non empty list" do
     assert %NestedProto{simple_proto: simple_proto, rsp: rsp} =
       Util.Proto.deep_new!(
         NestedProto, %{simple_proto: %{int_value: 3}, rsp: [%{bool_value: true}]})
 
+    simple_proto_non_empty_assert(simple_proto, rsp)
+  end
+
+  defp simple_proto_non_empty_assert(simple_proto, rsp) do
     assert simple_proto == %SimpleProto{
       bool_value: false, int_value: 3, string_value: "", float_value: 0, repeated_string: []}
     assert rsp == [%SimpleProto{

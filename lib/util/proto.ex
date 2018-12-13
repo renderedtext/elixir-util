@@ -4,9 +4,9 @@ defmodule Util.Proto do
   structures defined by protobuf-elixir modules.
 
   Usage:
-    iex> Util.Proto.deep_new!(module, arguments, options)
-    - module    - [required] Name of module which contains Protobuf structure definition
+    iex> Util.Proto.deep_new!(arguments, module, options)
     - arguments - [required] Plain elixir map with actual values for stucture fields
+    - module    - [required] Name of module which contains Protobuf structure definition
     - options   - [optional] Keyword containing optional parameters. More details below.
 
   Function will iterate ower passed arguments, recursively initialize any non-basic
@@ -35,14 +35,26 @@ defmodule Util.Proto do
   @proto_basic_types ~w(bool string enum int32 int64 uint32 uint64 sint32 sint64
    fixed32 fixed64 sfixed32 sfixed64 float double)a
 
-  def deep_new(struct, args, opts \\ []) do
+  def deep_new(_, _, opts \\ [])
+
+  def deep_new(args, struct, opts) when is_atom(struct) and is_map(args) do
+    deep_new(struct, args, opts)
+  end
+
+  def deep_new(struct, args, opts) do
     {:ok, deep_new!(struct, args, opts)}
   rescue
     e ->
       {:error, e}
   end
 
-  def deep_new!(struct, args, opts \\ []), do: do_deep_new(args, struct, "", opts)
+  def deep_new!(_, _, opts \\ [])
+
+  def deep_new!(args, struct, opts) when is_atom(struct) and is_map(args) do
+    deep_new!(struct, args, opts)
+  end
+
+  def deep_new!(struct, args, opts), do: do_deep_new(args, struct, "", opts)
 
 
 ######################
