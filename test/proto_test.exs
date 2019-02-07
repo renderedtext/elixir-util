@@ -182,9 +182,9 @@ defmodule Util.ProtoTest do
   end
 
   test "EnumProto to_map - codes" do
-    a = TestHelpers.EnumProto.new() #|> Util.Proto.to_map
-    assert(%{codes: [a, a, a]} |> TestHelpers.EnumProto.new() |> Util.Proto.to_map! ==
-      %{code: :OK, codes: [%{code: :OK, codes: []}, %{code: :OK, codes: []}, %{code: :OK, codes: []}]}
+    assert(%{codes: [0, 1, 2]}
+           |> Util.Proto.deep_new!(TestHelpers.EnumProto)
+           |> Util.Proto.to_map! == %{code: :OK, codes: [:OK, :Error, :Ambiguous]}
     )
   end
 
@@ -218,12 +218,10 @@ defmodule Util.ProtoTest do
   end
 
   test "EnumProto to_map string_keys - codes" do
-    a = TestHelpers.EnumProto.new() #|> Util.Proto.to_map
-    assert(%{codes: [a, a, a]}
-           |> TestHelpers.EnumProto.new()
+    assert(%{codes: [0, 1, 2]}
+           |> Util.Proto.deep_new!(TestHelpers.EnumProto)
            |> Util.Proto.to_map!(string_keys: true) ==
-      %{"code" => :OK, "codes" => [%{"code" => :OK, "codes" => []},
-      %{"code" => :OK, "codes" => []}, %{"code" => :OK, "codes" => []}]}
+      %{"code" => :OK, "codes" => [:OK, :Error, :Ambiguous]}
     )
   end
 
@@ -249,5 +247,51 @@ defmodule Util.ProtoTest do
       %{"rsp" => [%{"bool_value" => false, "float_value" => 0.0, "int_value" => 0,
         "repeated_string" => [], "string_value" => ""}], "simple_proto" => nil}
     )
+  end
+
+  test "NestedProto to_map transformations - annonymous user transform function" do
+    struct = %{simple_proto: %{int_value: 5}, rsp: [%{int_value: 7}, %{int_value: 3}]}
+             |> Util.Proto.deep_new!(TestHelpers.NestedProto)
+    fun = fn k, v -> if k == :simple_proto, do: v.int_value + 5, else: v.int_value + 3 end
+
+    assert struct |> Util.Proto.to_map!(transformations: %{TestHelpers.SimpleProto => fun})
+           == %{simple_proto: 10, rsp: [10, 6]}
+  end
+
+  def named_transf_to_map(k, v) do
+    if k == :simple_proto, do: v.int_value + 5, else: v.int_value + 3
+  end
+
+  test "NestedProto to_map transformations - named user transform function" do
+    struct = %{simple_proto: %{int_value: 5}, rsp: [%{int_value: 7}, %{int_value: 3}]}
+             |> Util.Proto.deep_new!(TestHelpers.NestedProto)
+
+    tf_map = %{TestHelpers.SimpleProto => {Util.ProtoTest, :named_transf_to_map}}
+
+    assert struct |> Util.Proto.to_map!(transformations: tf_map)
+           == %{simple_proto: 10, rsp: [10, 6]}
+  end
+
+  test "NestedEnumProto to_map transformations - annonymous user transform function" do
+    struct = %{enum_message: %{code: 0, codes: [1, 2]}}
+             |> Util.Proto.deep_new!(TestHelpers.NestedEnumProto)
+    fun = fn k, v -> if k == :code, do: v + 1, else: v + 2 end
+
+    assert struct |> Util.Proto.to_map!(transformations: %{TestHelpers.EnumProto.Code => fun})
+           == %{enum_message: %{code: 1, codes: [3, 4]}, string_val: ""}
+  end
+
+  test "NestedEnumProto to_map transformations - named user transform function" do
+    struct = %{enum_message: %{code: 0, codes: [1, 2]}}
+             |> Util.Proto.deep_new!(TestHelpers.NestedEnumProto)
+
+    tf_map = %{TestHelpers.EnumProto.Code => {Util.ProtoTest, :named_enum_transf_to_map}}
+
+    assert struct |> Util.Proto.to_map!(transformations: tf_map)
+           == %{enum_message: %{code: 1, codes: [3, 4]}, string_val: ""}
+  end
+
+  def named_enum_transf_to_map(k, v) do
+    if k == :code, do: v + 1, else: v + 2
   end
 end

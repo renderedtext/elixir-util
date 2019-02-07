@@ -62,8 +62,30 @@ defmodule Util.Proto do
   @doc """
   Transforms proto message struct into elixir map and transforms values for all
   enum fields into atoms instead of integers.
-  It returns map with atom keys unleas 'string_keys' optional parameter is set
-  on true, in which case resulting map will have string keys.
+
+  Usage:
+    iex> Util.Proto.to_map!(proto_struct, options)
+    - proto_struct - [required] Proto struct which should be transformed into plain map
+    - options      - [optional] Keyword containing optional parameters. More details below.
+
+  Options filed parameters:
+  - string_keys:
+      If this parameter i set to true resulting map will have string keys instead
+      of atom key, which is default behavior
+  - transformations:
+      Map where keys should be module names, and values user provided
+      functions, given either as annonymous functions or tuple
+      in form {module_name, fun_name}. This functions should receive
+      two parameters, field_name and field_values, and return new filed_values.
+      While parsing struct given to 'to_map', whenever a field with non-basic
+      type is processed, if it's type is a key in 'transformations' map, a function
+      provided as a value for that key will be called  with field's name and field's
+      values as parameters.
+      This is convinient way to manually transform fields received in one format
+      in Protobuf structure to another one used  fore storing without needing to
+      iterate trough all nested structures and perform transforamtions after
+      calling 'to_map'.
+      E.g. transform every Google.Protobuf.Timestamp field into Ecto.DateTime
   """
   def to_map(proto, opts \\ []) do
     {:ok, to_map!(proto, opts)}
@@ -72,32 +94,68 @@ defmodule Util.Proto do
   end
 
   def to_map!(proto, opts \\ [])
-  def to_map!(proto = %{__struct__: _}, opts), do: decode_value(proto, opts)
+  def to_map!(proto = %{__struct__: _}, opts), do: decode_value(proto, "", opts)
   def to_map!(proto, _opts), do: raise("Not a valid Proto struct: #{inspect proto}")
 
-  defp decode_value(%struct{} = value, opts) do
-    decoded_value = value |> Map.from_struct |> decode_value(opts)
+  defp decode_value(%struct{} = value, name, opts) do
+    case get_user_func(struct, opts) do
+      :skip         -> regular_struct_decode(value, name, opts)
+      {module, fun} -> apply(module, fun, [name, value])
+      fun           -> apply(fun, [name, value])
+    end
+  end
+  defp decode_value(%{} = value, name, opts),
+    do: value |> Map.to_list |> decode_value(name, opts) |> Enum.into(%{})
+  defp decode_value(value, name, opts) when is_list(value),
+    do: Enum.map(value, &decode_value(&1, name, opts))
+  defp decode_value({key, value}, _name, opts),
+    do: {to_string?(key, opts), decode_value(value, key, opts)}
+  defp decode_value(value, _name, _opts),  do: value
+
+  defp regular_struct_decode(%struct{} = value, name, opts) do
+    decoded_value = value |> Map.from_struct |> decode_value(name, opts)
 
     struct.__message_props__.field_props
     |> Enum.reduce(%{}, &decode_enum_value(&1, &2, decoded_value, opts))
   end
-  defp decode_value(%{} = value, opts),
-    do: value |> Map.to_list |> decode_value(opts) |> Enum.into(%{})
-  defp decode_value(value, opts) when is_list(value),
-    do: Enum.map(value, &decode_value(&1, opts))
-  defp decode_value({key, value}, opts),
-    do: {to_string?(key, opts), decode_value(value, opts)}
-  defp decode_value(value, _opts),  do: value
 
-  defp decode_enum_value({_k, %{enum?: true, repeated?: false} = v}, acc, decoded_value, opts) do
-    key = to_string?(v.name_atom, opts)
-    int_val = decoded_value[key]
-    atom_value = apply(v.enum_type, :key, [int_val])
-    Map.put(acc, key, atom_value)
+  defp decode_enum_value({_k, %{enum?: true, repeated?: true} = props}, acc, decoded_value, opts) do
+    field_name = to_string?(props.name_atom, opts)
+    decoded_value[field_name]
+    |> Enum.map(fn enum_val ->
+      enum_val_transformation(props, opts, field_name, enum_val)
+    end)
+    |> map_put_reverse(field_name, acc)
   end
-  defp decode_enum_value({_k, v}, acc, decoded_value, opts) do
-    key = to_string?(v.name_atom, opts)
-    Map.put(acc, key, decoded_value[key])
+  defp decode_enum_value({_k, %{enum?: true} = props}, acc, decoded_value, opts) do
+    field_name = to_string?(props.name_atom, opts)
+    props
+    |> enum_val_transformation(opts, field_name, decoded_value[field_name])
+    |> map_put_reverse(field_name, acc)
+  end
+  defp decode_enum_value({_k, props}, acc, decoded_value, opts) do
+    field_name = to_string?(props.name_atom, opts)
+    Map.put(acc, field_name, decoded_value[field_name])
+  end
+
+  defp enum_val_transformation(props, opts, field_name, enum_val) do
+    props
+    |> Map.get(:enum_type)
+    |> get_user_func(opts)
+    |> case do
+        :skip ->
+          apply(props.enum_type, :key, [enum_val])
+
+        {module, fun} ->
+          module |> apply(fun, [field_name, enum_val])
+
+        fun ->
+          fun |> apply([field_name, enum_val])
+      end
+  end
+
+  defp map_put_reverse(value, key, map) do
+    Map.put(map, key, value)
   end
 
   defp to_string?(key, [string_keys: true]), do: Atom.to_string(key)
