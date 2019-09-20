@@ -1,6 +1,6 @@
 defmodule Util.Proto do
   @moduledoc """
-  This module is inteded as a simple way for initializing deeply nested Protobuf
+  This module is intended as a simple way for initializing deeply nested Protobuf
   structures defined by protobuf-elixir modules.
 
   Usage:
