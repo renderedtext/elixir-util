@@ -21,7 +21,7 @@ defmodule Util.Proto do
      Map where keys should be module names, and values user provided
      functions, given either as annonymous functions or tuple
      in form {module_name, fun_name}. This functions should receive
-     two parameters, field_name and field_values and returne new field_values.
+     two parameters, field_name and field_values and return new field_values.
      While parsing arguments given to deep_new, whenever a field with non-basic
      type is processed, if it's type is a key in 'transformations' map, a function
      provided as a value for that key will be called before initializing field
