@@ -1,10 +1,13 @@
-
 version: "v1.0"
-name: Test pipeline
-semaphore_image: standard
+name: Test pipeline 
+agent:
+  machine:
+    type: e1-standard-2
+    os_image: ubuntu1804
+
 blocks:
   - name: "Stage 1"
-    build:
+    task:
       prologue:
         commands:
           - checkout
