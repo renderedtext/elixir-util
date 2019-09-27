@@ -158,8 +158,13 @@ defmodule Util.Proto do
     Map.put(map, key, value)
   end
 
-  defp to_string?(key, [string_keys: true]), do: Atom.to_string(key)
-  defp to_string?(key, _opts), do: key
+  defp to_string?(key, opts) do
+    if Keyword.get(opts, :string_keys, false) do
+      Atom.to_string(key)
+    else
+      key
+    end
+  end
 
 ######################
 
