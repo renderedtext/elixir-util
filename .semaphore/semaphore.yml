@@ -14,4 +14,4 @@ blocks:
       jobs:
       - name: Unit tests
         commands:
-          - make test
+          - sleep 120
