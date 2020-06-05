@@ -11,4 +11,4 @@ Just add it to your `mix.exs` file:
 ```
 {:util, github: "renderedtext/elixir-util"}
 ```
-and then you can use all modules under `Util` namespace.
+and then you can use all modules under `Util` namespace.  
