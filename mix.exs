@@ -19,6 +19,7 @@ defmodule Util.Mixfile do
       {:watchman, github: "renderedtext/ex-watchman"},
       {:wormhole, "~> 2.2"},
       {:protobuf, "~> 0.5"},
+      {:mock, "~> 0.3.0", only: :test},
     ]
   end
 end

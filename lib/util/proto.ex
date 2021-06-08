@@ -139,12 +139,13 @@ defmodule Util.Proto do
   end
 
   defp enum_val_transformation(props, opts, field_name, enum_val) do
-    props
-    |> Map.get(:enum_type)
+    enum_type = find_enum_type(props)
+
+    enum_type
     |> get_user_func(opts)
     |> case do
         :skip ->
-          apply(props.enum_type, :key, [enum_val])
+          apply(enum_type, :key, [enum_val])
 
         {module, fun} ->
           module |> apply(fun, [field_name, enum_val])
@@ -186,6 +187,10 @@ defmodule Util.Proto do
 
   defp do_deep_new(arg, _struct = :enum, _name, _opts) when is_integer(arg), do: arg
   defp do_deep_new(arg, _struct = :enum, name, _opts),
+    do: raise "Field: '#{name}': Expected integer or atom argument, got '#{inspect arg}'"
+
+  defp do_deep_new(arg, _struct = {:enum, _type}, _name, _opts) when is_integer(arg), do: arg
+  defp do_deep_new(arg, _struct = {:enum, _type}, name, _opts),
     do: raise "Field: '#{name}': Expected integer or atom argument, got '#{inspect arg}'"
 
   defp do_deep_new(arg, struct, _name, _opts)
@@ -252,12 +257,19 @@ defmodule Util.Proto do
   defp do_init(index, name, value, props, opts) do
     field_type = props.field_props[index].type
 
-    props.field_props[index].enum_type
+    props.field_props[index]
+    |> find_enum_type()
     |> set_if_enum(name, value, opts)
     |> do_deep_new(field_type, name, opts)
   end
 
 ##########################  H E L P E R S  ##########################
+
+  defp find_enum_type(%{enum_type: type})
+    when is_atom(type) and not is_nil(type), do: type
+  defp find_enum_type(%{type: {:enum, type}})
+    when is_atom(type) and not is_nil(type), do: type
+  defp find_enum_type(_props), do: nil
 
   defp apply_reverse(args, fun, mod), do: apply(mod, fun, [args])
 
