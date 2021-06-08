@@ -1,8 +1,9 @@
 defmodule Util.ProtoTest do
+  use ExUnit.Case, async: false
 
-  use ExUnit.Case
+  import Mock
 
-  alias TestHelpers.{SimpleProto, NestedProto, EnumProto, NestedEnumProto}
+  alias TestHelpers.{SimpleProto, NestedProto, EnumProto, EnumProto2, NestedEnumProto}
 
   test "simple test - no args - args first" do
     assert %{} |> Util.Proto.deep_new!(SimpleProto) ==
@@ -135,6 +136,64 @@ defmodule Util.ProtoTest do
     assert Util.Proto.deep_new!(EnumProto, %{codes: [:Error, :OK]}) == %EnumProto{code: 0, codes: [1, 0]}
   end
 
+  test "enum - newer protobuf versions with different field props" do
+    with_mock EnumProto2, [__message_props__: &mocked_props/0, new: &(mocked_new(&1))] do
+      assert Util.Proto.deep_new!(EnumProto2, %{codes: [:Error, :OK]}) == %EnumProto2{code: 0, codes: [1, 0]}
+    end
+
+    Code.load_file("test/test_helper.exs")
+  end
+
+  def mocked_new(params) do
+    [code: 0, codes: []]
+    |> Keyword.merge(params)
+    |> Enum.reduce(%EnumProto2{}, fn {k, v}, map -> Map.put(map, k, v) end)
+  end
+
+  def mocked_props() do
+    %{enum?: false,
+      extendable?: false,
+      field_props: %{
+        1 => %{
+          default: nil,
+          embedded?: false,
+          enum?: true,
+          fnum: 1,
+          map?: false,
+          name: "code",
+          name_atom: :code,
+          oneof: nil,
+          optional?: true,
+          packed?: false,
+          repeated?: false,
+          required?: false,
+          type: {:enum, TestHelpers.EnumProto.Code},    # this is relevan change
+          wire_type: 0},
+        2 => %{
+          default: nil,
+          embedded?: false,
+          enum?: true,
+          fnum: 2,
+          map?: false,
+          name: "codes",
+          name_atom: :codes,
+          oneof: nil,
+          optional?: true,
+          packed?: true,
+          repeated?: true,
+          required?: false,
+          type: {:enum, TestHelpers.EnumProto.Code}, # this is relevan change
+          wire_type: 0}
+      },
+      field_tags: %{code: 1, codes: 2},
+      map?: false,
+      oneof: [],
+      ordered_tags: [1, 2],
+      repeated_fields: [:codes],
+      syntax: :proto3,
+      tags_map: %{1 => 1, 2 => 2}}
+  end
+
   test "nested enum - int values" do
     assert Util.Proto.deep_new!(NestedEnumProto, %{enum_message: %{code: 0, codes: [0, 1]}})
            == %NestedEnumProto{enum_message: %EnumProto{code: 0, codes: [0, 1]}, string_val: ""}
@@ -223,6 +282,18 @@ defmodule Util.ProtoTest do
            |> Util.Proto.to_map!(string_keys: true) ==
       %{"code" => :OK, "codes" => [:OK, :Error, :Ambiguous]}
     )
+  end
+
+  test "EnumProto to_map - newer protobuf versions with different field props" do
+    with_mock EnumProto2, [__message_props__: &mocked_props/0, new: &(mocked_new(&1))] do
+      assert(%{codes: [0, 1, 2]}
+             |> Util.Proto.deep_new!(TestHelpers.EnumProto2)
+             |> Util.Proto.to_map!(string_keys: true) ==
+        %{"code" => :OK, "codes" => [:OK, :Error, :Ambiguous]}
+      )
+    end
+
+    Code.load_file("test/test_helper.exs")
   end
 
   test "SimpleProto to_map string_keys" do

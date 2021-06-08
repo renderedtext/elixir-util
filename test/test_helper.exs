@@ -1,4 +1,4 @@
-ExUnit.start()
+ExUnit.start(trace: true)
 
 defmodule TestHelpers do
 
@@ -35,6 +35,20 @@ defmodule TestHelpers do
   end
 
   defmodule EnumProto do
+    use Protobuf, syntax: :proto3
+
+    @type t :: %__MODULE__{
+      code:  integer,
+      codes: [integer]
+    }
+    defstruct [:code, :codes]
+
+    field :code, 1, type: TestHelpers.EnumProto.Code, enum: true
+    field :codes, 2, repeated: true, type: TestHelpers.EnumProto.Code, enum: true
+  end
+
+  # Mock library has issues with reseting mocks so it is better to use duplicated module
+  defmodule EnumProto2 do
     use Protobuf, syntax: :proto3
 
     @type t :: %__MODULE__{
