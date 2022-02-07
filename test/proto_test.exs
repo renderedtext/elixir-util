@@ -59,6 +59,13 @@ defmodule Util.ProtoTest do
     float_value: 0, repeated_string: ["as", "qw"]}
   end
 
+  test "simple test - basic type fields with nil as value" do
+    params = %{bool_value: nil, int_value: nil, string_value: nil, float_value: nil}
+
+    assert Util.Proto.deep_new!(SimpleProto, params) ==
+      %TestHelpers.SimpleProto{bool_value: false, int_value: 0, string_value: "",
+      float_value: 0, repeated_string: []}
+  end
 
   test "nested test - SimpleProto field - empty map, empty list" do
     assert %TestHelpers.NestedProto{simple_proto: simple_proto, rsp: rsp} =
