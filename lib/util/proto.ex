@@ -178,24 +178,30 @@ defmodule Util.Proto do
   end
 
   defp do_deep_new(arg, _struct = :bool, _name, _opts) when is_boolean(arg), do: arg
+  defp do_deep_new(nil, _struct = :bool, _name, _opts), do: false
   defp do_deep_new(arg, _struct = :bool, name, _opts),
     do: raise "Field: '#{name}': Expected boolean argument, got '#{inspect arg}'"
 
   defp do_deep_new(arg, _struct = :string, _name, _opts) when is_binary(arg), do: arg
+  defp do_deep_new(nil, _struct = :string, _name, _opts), do: ""
   defp do_deep_new(arg, _struct = :string, name, _opts),
     do: raise "Field: '#{name}': Expected string argument, got '#{inspect arg}'"
 
   defp do_deep_new(arg, _struct = :enum, _name, _opts) when is_integer(arg), do: arg
+  defp do_deep_new(nil, _struct = :enum, _name, _opts), do: 0
   defp do_deep_new(arg, _struct = :enum, name, _opts),
     do: raise "Field: '#{name}': Expected integer or atom argument, got '#{inspect arg}'"
 
   defp do_deep_new(arg, _struct = {:enum, _type}, _name, _opts) when is_integer(arg), do: arg
+  defp do_deep_new(nil, _struct = {:enum, _type}, _name, _opts), do: 0
   defp do_deep_new(arg, _struct = {:enum, _type}, name, _opts),
     do: raise "Field: '#{name}': Expected integer or atom argument, got '#{inspect arg}'"
 
   defp do_deep_new(arg, struct, _name, _opts)
     when struct in [:int32, :int64, :uint32, :uint64, :sint32, :sint64] and
       is_integer(arg), do: arg
+  defp do_deep_new(nil, struct, name, _opts)
+    when struct in [:int32, :int64, :uint32, :uint64, :sint32, :sint64], do: 0
   defp do_deep_new(arg, struct, name, _opts)
     when struct in [:int32, :int64, :uint32, :uint64, :sint32, :sint64],
     do: raise "Field: '#{name}': Expected #{inspect struct} argument, got '#{inspect arg}'"
@@ -203,6 +209,8 @@ defmodule Util.Proto do
   defp do_deep_new(arg, struct, _name, _opts)
     when struct in [:fixed32, :fixed64, :sfixed32, :sfixed64, :float, :double] and
       is_float(arg), do: arg
+  defp do_deep_new(nil, struct, _name, _opts)
+    when struct in [:fixed32, :fixed64, :sfixed32, :sfixed64, :float, :double], do: 0
   defp do_deep_new(arg, struct, name, _opts)
     when struct in [:fixed32, :fixed64, :sfixed32, :sfixed64, :float, :double],
     do: raise "Field: '#{name}': Expected #{inspect struct} argument, got '#{inspect arg}'"
