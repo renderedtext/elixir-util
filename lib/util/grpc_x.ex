@@ -1,4 +1,4 @@
-defmodule Util.Grpc do
+defmodule Util.GrpcX do
   @moduledoc """
   This module provides an opiniated interface for communicating with
   GRPC services. It handles starting and closing connections, logging,
@@ -9,20 +9,18 @@ defmodule Util.Grpc do
   1. First, add Util.Grpc to your application's supervision tree.
      This process keeps the configuration values for your Grpc clients.
 
+     grpc_clients = [
+       Util.Grpc.Client.new(:user_service, "localhost:50051", UserApi.Stub),
+       Util.Grpc.Client.new(:billing_service, "localhost:50051", BillingApi.Stub)
+     ]
+
      children = [
-       worker(Util.Grpc, [])
+       worker(Util.Grpc, gprc_clients)
      ]
 
      Supervisor.start_link(children, opts)
 
-  2. Describe the outgoing connections from your service:
-
-     Util.Grpc.setup([
-       Util.Grpc.Client.new(:user_service, "localhost:50051", UserApi.Stub),
-       Util.Grpc.Client.new(:billing_service, "localhost:50051", BillingApi.Stub)
-     ])
-
-  3. User Grpc.do to communicate with your upstream services:
+  3. Use Grpc.call to communicate with your upstream services:
 
     req = ExampleApi.DescribeRequest.new(name: "a")
 
@@ -39,29 +37,14 @@ defmodule Util.Grpc do
   In case of errors, log messages are logged via the Logger module.
   """
 
+  alias Util.GrpcX.State
+  alias Util.GrpcX.Client
+
   @type client_name :: String.t()
 
-  def start_link do
-    Util.Grpc.State.start_link()
-  end
-
-  @doc """
-  Sets up Grpc connection information.
-
-  Example:
-
-    Util.Grpc.setup([
-      Client.new(:service_a, Application.get_env("SERVICE_A_ENDPOINT"), :info, true)
-      Client.new(:service_b, Application.get_env("SERVICE_B_ENDPOINT"), :info, true)
-    ])
-
-  """
-  def setup(clients) do
-    :ok = State.reset()
-
-    Enum.each(clients, fn c -> Util.Grpc.State.add_client(c) end)
-
-    :ok
+  @spec start_link([Util.Grpc.Client.t()]) :: {:ok, pid()} | {:error, any()}
+  def start_link(clients) do
+    Util.GrpcX.State.start_link(clients)
   end
 
   @doc """
@@ -71,14 +54,10 @@ defmodule Util.Grpc do
   2. Sends the RPC request
   3. Waits for the result, or times out
   """
-  @spec rpc(client_name(), GRPC.Channel.t(), function()) ::
-          {:ok, any()}
-          | {:error, :failed_to_connect, any()}
-          | {:error, :timeout, any()}
-          | {:error, any()}
-  def call(client_name, callback) do
+  @spec call(client_name(), Atom.t(), any(), any()) :: Util.GrpcX.RPCCall.response()
+  def call(client_name, method_name, request, opts \\ []) do
     {:ok, client} = State.find_client(client_name)
 
-    Client.rpc(client, callback)
+    Client.call(client, method_name, request, opts)
   end
 end
