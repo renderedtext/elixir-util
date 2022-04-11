@@ -18,11 +18,13 @@ defmodule Util.GrpcX.Client do
 
   # 30 seconds
   @default_timeout 30_000
+  @default_log_level :info
 
-  def new(name, endpoint, stub), do: new(name, endpoint, stub, @default_timeout, :info, true)
-  def new(name, endpoint, stub, timeout), do: new(name, endpoint, stub, timeout, :info, true)
+  def new(name, endpoint, stub, opts \\ []) do
+    timeout = Keyword.get(opts, :timeout, @default_timeout)
+    log_level = Keyword.get(opts, :log_level, @default_log_level)
+    publish_metrics = Keyword.get(opts, :publish_metrics, true)
 
-  def new(name, endpoint, stub, timeout, log_level, publish_metrics) do
     %__MODULE__{
       name: name,
       endpoint: endpoint,

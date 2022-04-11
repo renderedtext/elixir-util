@@ -6,6 +6,7 @@ defmodule Util.Mixfile do
       app: :util,
       version: "0.0.1",
       elixir: "~> 1.4",
+      elixirc_paths: elixirc_paths(Mix.env()),
       build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod,
       deps: deps()
@@ -15,6 +16,10 @@ defmodule Util.Mixfile do
   def application do
     [extra_applications: [:logger]]
   end
+
+  def elixirc_paths(:test), do: ["lib", "test/protos"]
+  def elixirc_paths(:dev), do: ["lib", "test/protos"]
+  def elixirc_paths(_), do: ["lib"]
 
   defp deps do
     [
