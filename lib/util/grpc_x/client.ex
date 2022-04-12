@@ -39,6 +39,11 @@ defmodule Util.GrpcX.Client do
   def call(client, method_name, request, opts \\ []) do
     rpc_call = RPCCall.new(client, method_name, request, opts)
 
-    Wormhole.capture(fn -> RPCCall.execute(rpc_call) end, timeout: rpc_call.timeout)
+    result = Wormhole.capture(fn -> RPCCall.execute(rpc_call) end, timeout: rpc_call.timeout)
+
+    case result do
+      {:ok, result} -> result
+      {:error, result} -> {:error, result}
+    end
   end
 end

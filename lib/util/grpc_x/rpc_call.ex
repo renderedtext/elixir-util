@@ -13,6 +13,7 @@ defmodule Util.GrpcX.RPCCall do
 
     %{
       endpoint: client.endpoint,
+      client_name: client.name,
       stub: client.stub,
       method_name: method_name,
       request: request,
@@ -37,16 +38,16 @@ defmodule Util.GrpcX.RPCCall do
     end)
   end
 
-  defp connect(rpc_call) do
-    inc(rpc_call, "connect.count")
+  defp connect(rpc) do
+    inc(rpc, "connect.count")
 
-    case GRPC.Stub.connect(rpc_call.endpoint) do
+    case GRPC.Stub.connect(rpc.endpoint) do
       {:ok, channel} ->
         {:ok, channel}
 
       {:error, err} ->
-        inc(rpc_call, "connect.failure.count")
-        log(rpc_call, "Failed to connect")
+        inc(rpc, "connect.error.count")
+        log_err(rpc, "failed to connect to #{rpc.endpoint}")
 
         {:error, err}
     end
@@ -64,18 +65,22 @@ defmodule Util.GrpcX.RPCCall do
         inc(rpc, "response.success.count")
         {:ok, result}
 
+      {:error, {:unknown_rpc, _}} = e ->
+        e
+
       {:error, err} ->
         inc(rpc, "response.error.count")
-        log(rpc, "response error err='#{inspect(err)}'")
+        log_err(rpc, "err='#{inspect(err)}'")
 
         {:error, err}
     end
   end
 
   defp do_call(rpc, channel) do
-    GRPC.Stub.call(rpc.stub, rpc.method_name, channel, rpc.request, rpc.opts)
+    apply(rpc.stub, rpc.method_name, [channel, rpc.request, rpc.opts])
   rescue
-    e -> {:error, e}
+    e in UndefinedFunctionError ->
+      {:error, {:unknown_rpc, "no RPC method named='#{e.function}'"}}
   end
 
   defp inc(rpc, metric) do
@@ -92,7 +97,10 @@ defmodule Util.GrpcX.RPCCall do
     end
   end
 
-  defp log(rpc, msg) do
-    Logger.log(rpc.log_level, "GrpcX: #{rpc.client_name} #{rpc.method_name} #{msg}")
+  defp log_err(rpc, msg) do
+    Logger.log(
+      rpc.log_level,
+      "GrpcX ERROR client='#{rpc.client_name}' rpc='#{rpc.method_name}' #{msg}"
+    )
   end
 end

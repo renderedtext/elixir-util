@@ -56,8 +56,12 @@ defmodule Util.GrpcX do
   """
   @spec call(client_name(), Atom.t(), any(), any()) :: Util.GrpcX.RPCCall.response()
   def call(client_name, method_name, request, opts \\ []) do
-    {:ok, client} = State.find_client(client_name)
+    case State.find_client(client_name) do
+      {:ok, client} ->
+        Client.call(client, method_name, request, opts)
 
-    Client.call(client, method_name, request, opts)
+      :error ->
+        {:error, "GrpcX client with name='#{client_name}' not registered in GrpcX"}
+    end
   end
 end

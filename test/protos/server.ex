@@ -5,8 +5,16 @@ defmodule Helloworld.Greeter.Server do
 
   @spec say_hello(HelloRequest.t(), GRPC.Server.Stream.t()) :: HelloReply.t()
   def say_hello(request, _stream) do
-    IO.inspect("Say Hello requested")
+    case request.name do
+      "please take a long time" ->
+        :timer.sleep(60_000)
+        Helloworld.HelloReply.new(message: "Hello")
 
-    Helloworld.HelloReply.new(message: "Hello #{request.name}")
+      "please fail" ->
+        raise "I'm failing"
+
+      name ->
+        Helloworld.HelloReply.new(message: "Hello #{name}")
+    end
   end
 end
