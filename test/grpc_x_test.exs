@@ -117,14 +117,28 @@ defmodule Util.GrpcXTest do
 
   def start_clients() do
     clients = [
-      Util.GrpcX.Client.new(:hello_service, "localhost:50052", Helloworld.Greeter.Stub),
-      Util.GrpcX.Client.new(:not_running_service, "localhost:60000", Helloworld.Greeter.Stub),
+      Util.GrpcX.Client.new(
+        :hello_service,
+        "localhost:50052",
+        Helloworld.Greeter.Stub
+      ),
+      Util.GrpcX.Client.new(
+        :not_running_service,
+        "localhost:60000",
+        Helloworld.Greeter.Stub
+      ),
       Util.GrpcX.Client.new(
         :hello_service_not_measured,
         "localhost:50052",
         Helloworld.Greeter.Stub,
         publish_metrics: false
-      )
+      ),
+      Util.GrpcX.Client.new(
+        :hello_service,
+        "localhost:50052",
+        Helloworld.Greeter.Stub
+        response_middlewares: [Util.GrpcX.Middlewares.ResponseStatusToStatus]
+      ),
     ]
 
     Util.GrpcX.start_link(clients)

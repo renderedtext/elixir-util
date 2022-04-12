@@ -77,6 +77,8 @@ defmodule Util.GrpcX.RPCCall do
   end
 
   defp do_call(rpc, channel) do
+    # todo handle middlewares
+
     apply(rpc.stub, rpc.method_name, [channel, rpc.request, rpc.opts])
   rescue
     e in UndefinedFunctionError ->
