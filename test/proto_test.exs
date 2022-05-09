@@ -211,6 +211,11 @@ defmodule Util.ProtoTest do
            == %NestedEnumProto{enum_message: %EnumProto{code: 1, codes: [0, 1]}, string_val: ""}
   end
 
+  test "nested enum - string values" do
+    assert Util.Proto.deep_new!(NestedEnumProto, %{enum_message: %{code: "Error", codes: ["OK", "Error"]}})
+           == %NestedEnumProto{enum_message: %EnumProto{code: 1, codes: [0, 1]}, string_val: ""}
+  end
+
   test "{:ok, state}" do
     assert Util.Proto.deep_new(SimpleProto, %{bool_value: true}) ==
       {:ok, %TestHelpers.SimpleProto{bool_value: true, int_value: 0, string_value: "",
