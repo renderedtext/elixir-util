@@ -17,6 +17,12 @@ defmodule Util.LoaderTest do
     assert results.permissions == "Mike is an admin"
   end
 
+  test "it returns errors" do
+    assert {:error, results} = __MODULE__.Example3.load_resources()
+
+    assert results.user == {:error, :not_found}
+  end
+
   defmodule Example1 do
     def load_resources do
       Loader.load([
@@ -39,5 +45,17 @@ defmodule Util.LoaderTest do
 
     defp load_user(_deps, _args), do: {:ok, "Mike"}
     defp load_permissions(%{user: user}, _args), do: {:ok, "#{user} is an admin"}
+  end
+
+  defmodule Example3 do
+    def load_resources do
+      Loader.load([
+        {:user, &load_user/2},
+        {:org, &load_org/2}
+      ])
+    end
+
+    defp load_user(_deps, _args), do: {:error, :not_found}
+    defp load_org(_deps, _args), do: {:ok, "Acme"}
   end
 end

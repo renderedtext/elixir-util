@@ -17,22 +17,38 @@ defmodule Util.Loader do
       deps = extract_deps(t, results)
 
       Task.async(fn ->
-        case fun(t).(deps, []) do
-          {:ok, res} -> {name(t), res}
-          e -> {:error, e}
-        end
+        {name(t), fun(t).(deps, [])}
       end)
     end)
     |> Task.await_many()
     |> Enum.into(%{})
 
-    results = Map.merge(results, new_results)
+    case process(new_results) do
+      {:ok, new_results} ->
+        results = Map.merge(results, new_results)
 
-    if rest == [] do
-      {:ok, results}
-    else
-      execute(rest, results)
+        if rest == [] do
+          {:ok, results}
+        else
+          execute(rest, results)
+        end
+
+      {:error, new_results} ->
+        results = Map.merge(results, new_results)
+
+        {:error, results}
     end
+  end
+
+  defp process(raw_results) do
+    res = Enum.reduce(raw_results, {:ok, []}, fn r, {type, acc} ->
+      case r do
+        {name, {:ok, val}} -> {type, acc ++ [{name, val}]}
+        {name, e} -> {:error, acc ++ [{name, e}]}
+      end
+    end)
+
+    {elem(res, 0), Enum.into(elem(res, 1), %{})}
   end
 
   defp name(task) do
