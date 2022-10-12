@@ -17,10 +17,19 @@ defmodule Util.LoaderTest do
     assert results.permissions == "Mike is an admin"
   end
 
-  test "it returns errors" do
+  test "it can return errors" do
     assert {:error, results} = __MODULE__.Example3.load_resources()
 
     assert results.user == {:error, :not_found}
+  end
+
+  test "it returns an error if an unknown dependency is required" do
+    resources = [
+      {:a, fn _, _ -> {:ok, nil} end},
+      {:b, fn _, _ -> {:ok, nil} end, depends_on: [:c]},
+    ]
+
+    assert {:error, :unknown_dependency, :c} = Loader.load(resources)
   end
 
   defmodule Example1 do

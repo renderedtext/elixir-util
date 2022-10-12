@@ -73,6 +73,21 @@ defmodule Util.Loader do
   end
 
   defp validate(tasks) do
-    :ok
+    names = Enum.map(tasks, fn t -> name(t) end)
+
+    with :ok <- all_deps_exists(names, tasks) do
+      :ok
+    end
+  end
+
+  defp all_deps_exists(_, []), do: :ok
+  defp all_deps_exists(names, [task | rest]) do
+    missing = deps(task) |> Enum.find(fn d -> d not in names end)
+
+    if missing do
+      {:error, :unknown_dependency, missing}
+    else
+      all_deps_exists(names, rest)
+    end
   end
 end
