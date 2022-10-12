@@ -1,8 +1,6 @@
 defmodule Util.Loader do
   def load(tasks) do
-    with :ok <- validate(tasks) do
-      execute(tasks, %{})
-    end
+    execute(tasks, %{})
   end
 
   defp execute(tasks, results) do
@@ -13,30 +11,34 @@ defmodule Util.Loader do
       MapSet.subset?(required_deps, resolved_deps)
     end)
 
-    new_results = Enum.map(runnable, fn t ->
-      deps = extract_deps(t, results)
+    if runnable == [] && rest != [] do
+      {:error, :unprocessed, Enum.map(rest, fn r -> name(r) end)}
+    else
+      new_results = Enum.map(runnable, fn t ->
+        deps = extract_deps(t, results)
 
-      Task.async(fn ->
-        {name(t), fun(t).(deps, [])}
+        Task.async(fn ->
+          {name(t), fun(t).(deps, [])}
+        end)
       end)
-    end)
-    |> Task.await_many()
-    |> Enum.into(%{})
+      |> Task.await_many()
+      |> Enum.into(%{})
 
-    case process(new_results) do
-      {:ok, new_results} ->
-        results = Map.merge(results, new_results)
+      case process(new_results) do
+        {:ok, new_results} ->
+          results = Map.merge(results, new_results)
 
-        if rest == [] do
-          {:ok, results}
-        else
-          execute(rest, results)
-        end
+          if rest == [] do
+            {:ok, results}
+          else
+            execute(rest, results)
+          end
 
-      {:error, new_results} ->
-        results = Map.merge(results, new_results)
+        {:error, new_results} ->
+          results = Map.merge(results, new_results)
 
-        {:error, results}
+          {:error, results}
+      end
     end
   end
 
@@ -70,24 +72,5 @@ defmodule Util.Loader do
     deps(task) |> Enum.map(fn d ->
       {d, Map.get(results, d)}
     end) |> Enum.into(%{})
-  end
-
-  defp validate(tasks) do
-    names = Enum.map(tasks, fn t -> name(t) end)
-
-    with :ok <- all_deps_exists(names, tasks) do
-      :ok
-    end
-  end
-
-  defp all_deps_exists(_, []), do: :ok
-  defp all_deps_exists(names, [task | rest]) do
-    missing = deps(task) |> Enum.find(fn d -> d not in names end)
-
-    if missing do
-      {:error, :unknown_dependency, missing}
-    else
-      all_deps_exists(names, rest)
-    end
   end
 end

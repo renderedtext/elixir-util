@@ -15,6 +15,14 @@ defmodule Util.LoaderTest do
 
     assert results.user == "Mike"
     assert results.permissions == "Mike is an admin"
+
+    resources = [
+      {:a, fn _, _ -> {:ok, "a"} end},
+      {:b, fn _, _ -> {:ok, "b"} end, depends_on: [:a]},
+      {:c, fn _, _ -> {:ok, "c"} end, depends_on: [:b]},
+    ]
+
+    assert {:ok, %{a: "a", b: "b", c: "c"}} = Loader.load(resources)
   end
 
   test "it can return errors" do
@@ -29,7 +37,26 @@ defmodule Util.LoaderTest do
       {:b, fn _, _ -> {:ok, nil} end, depends_on: [:c]},
     ]
 
-    assert {:error, :unknown_dependency, :c} = Loader.load(resources)
+    assert {:error, :unprocessed, [:b]} = Loader.load(resources)
+  end
+
+  test "it returns an error if there is a cycle in the deps" do
+    resources = [
+      {:a, fn _, _ -> {:ok, nil} end},
+      {:b, fn _, _ -> {:ok, nil} end, depends_on: [:c]},
+      {:c, fn _, _ -> {:ok, nil} end, depends_on: [:b]},
+    ]
+
+    assert {:error, :unprocessed, [:b, :c]} = Loader.load(resources)
+
+    resources = [
+      {:a, fn _, _ -> {:ok, nil} end},
+      {:b, fn _, _ -> {:ok, nil} end, depends_on: [:d]},
+      {:c, fn _, _ -> {:ok, nil} end, depends_on: [:b]},
+      {:d, fn _, _ -> {:ok, nil} end, depends_on: [:c]},
+    ]
+
+    assert {:error, :unprocessed, [:b, :c, :d]} = Loader.load(resources)
   end
 
   defmodule Example1 do
