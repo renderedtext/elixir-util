@@ -1,6 +1,11 @@
 defmodule Util.Loader do
   def load(tasks) do
-    execute(tasks, %{})
+    with(
+      :ok <- check_deps_cycle(tasks),
+      :ok <- check_unknown_deps(tasks)
+    ) do
+      execute(tasks, %{})
+    end
   end
 
   defp execute(tasks, results) do
@@ -72,5 +77,21 @@ defmodule Util.Loader do
     deps(task) |> Enum.map(fn d ->
       {d, Map.get(results, d)}
     end) |> Enum.into(%{})
+  end
+
+  defp check_deps_cycle(tasks) do
+    :ok
+  end
+
+  defp check_unknown_deps(tasks) do
+    names = Enum.map(tasks, fn t -> name(t) end)
+
+    Enum.find(tasks, fn task ->
+      Enum.any?(deps(task), fn d -> d not in names end)
+    end)
+    |> case do
+      nil -> :ok
+      _ -> {:error, :unknown_dependency}
+    end
   end
 end
