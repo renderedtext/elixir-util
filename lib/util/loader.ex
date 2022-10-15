@@ -1,5 +1,9 @@
 defmodule Util.Loader do
-  def load(tasks) do
+  alias __MODULE__.LoadTask
+
+  def load(definitions) do
+    tasks = Enum.map(definitions, &LoadTask.new/1)
+
     with(
       :ok <- check_deps_cycle(tasks),
       :ok <- check_unknown_deps(tasks)
@@ -10,21 +14,16 @@ defmodule Util.Loader do
 
   defp execute(tasks, results) do
     {runnable, rest} = Enum.split_with(tasks, fn t ->
-      required_deps = deps(t)
-      resolved_deps = MapSet.new(Map.keys(results))
-
-      MapSet.subset?(required_deps, resolved_deps)
+      MapSet.subset?(MapSet.new(t.deps), MapSet.new(Map.keys(results)))
     end)
 
     if runnable == [] && rest != [] do
-      {:error, :unprocessed, Enum.map(rest, fn r -> name(r) end)}
+      {:error, :unprocessed, Enum.map(rest, fn r -> r.id end)}
     else
       new_results = Enum.map(runnable, fn t ->
         deps = extract_deps(t, results)
 
-        Task.async(fn ->
-          {name(t), fun(t).(deps, [])}
-        end)
+        LoadTask.execute_async(t, deps)
       end)
       |> Task.await_many()
       |> Enum.into(%{})
@@ -62,19 +61,8 @@ defmodule Util.Loader do
     elem(task, 0)
   end
 
-  defp fun(task) do
-    elem(task, 1)
-  end
-
-  defp deps(task) do
-    case task do
-      {name, fun} -> MapSet.new([])
-      {name, fun, opts} -> MapSet.new(Keyword.get(opts, :depends_on, []))
-    end
-  end
-
   defp extract_deps(task, results) do
-    deps(task) |> Enum.map(fn d ->
+    task.deps |> Enum.map(fn d ->
       {d, Map.get(results, d)}
     end) |> Enum.into(%{})
   end
@@ -84,14 +72,44 @@ defmodule Util.Loader do
   end
 
   defp check_unknown_deps(tasks) do
-    names = Enum.map(tasks, fn t -> name(t) end)
+    names = Enum.map(tasks, &(&1.id))
 
     Enum.find(tasks, fn task ->
-      Enum.any?(deps(task), fn d -> d not in names end)
+      Enum.any?(task.deps, fn d -> d not in names end)
     end)
     |> case do
       nil -> :ok
       _ -> {:error, :unknown_dependency}
+    end
+  end
+
+  defmodule LoadTask do
+    def new({id, fun}) do
+      new({id, fun, []})
+    end
+
+    def new({id, fun, opts}) do
+      %{
+        id: id,
+        fun: fun,
+        deps: Keyword.get(opts, :depends_on, [])
+      }
+    end
+
+    def execute(task, deps) do
+      case :erlang.fun_info(task.fun)[:arity] do
+        0 -> task.fun.()
+        1 -> task.fun.(deps)
+        2 -> task.fun.(deps, [])
+      end
+    end
+
+    def execute_async(task, deps) do
+      Task.async(fn ->
+        res = execute(task, deps)
+
+        {task.id, res}
+      end)
     end
   end
 end

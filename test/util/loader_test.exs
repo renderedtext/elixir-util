@@ -26,11 +26,13 @@ defmodule Util.LoaderTest do
   test "multiple tasks with dependencies" do
     assert {:ok, resources} = Loader.load([
       {:a, fn -> {:ok, "a"} end},
-      {:b, fn -> {:ok, "b"} end, depends_on: [:a]},
-      {:c, fn -> {:ok, "c"} end, depends_on: [:b]},
+      {:b, fn deps -> {:ok, deps.a <> "b"} end, depends_on: [:a]},
+      {:c, fn deps -> {:ok, deps.b <> "c"} end, depends_on: [:b]},
     ])
 
-    assert {:ok, %{a: "a", b: "b", c: "c"}} = Loader.load(resources)
+    assert resources.a == "a"
+    assert resources.b == "ab"
+    assert resources.c == "abc"
   end
 
   test "it can return errors" do
@@ -58,7 +60,7 @@ defmodule Util.LoaderTest do
       {:c, fn _, _ -> {:ok, nil} end, depends_on: [:b]},
     ]
 
-    assert {:error, :unprocessed, [:b, :c]} = Loader.load(resources)
+    assert {:error, :dependency_cycle} = Loader.load(resources)
 
     resources = [
       {:a, fn _, _ -> {:ok, nil} end},
