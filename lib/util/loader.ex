@@ -5,8 +5,8 @@ defmodule Util.Loader do
     tasks = Enum.map(definitions, &LoadTask.new/1)
 
     with(
-      :ok <- check_deps_cycle(tasks),
-      :ok <- check_unknown_deps(tasks)
+      :ok <- check_unknown_deps(tasks),
+      :ok <- check_deps_cycle(tasks)
     ) do
       execute(tasks, %{})
     end
@@ -67,8 +67,21 @@ defmodule Util.Loader do
     end) |> Enum.into(%{})
   end
 
-  defp check_deps_cycle(tasks) do
-    :ok
+  defp check_deps_cycle(tasks, visited \\ []) do
+    {visitable, rest} = Enum.split_with(tasks, fn t ->
+      MapSet.subset?(MapSet.new(t.deps), MapSet.new(visited))
+    end)
+
+    cond do
+      visitable == [] && rest == [] ->
+        :ok
+
+      visitable == [] && rest != [] ->
+        {:error, :dependency_cycle}
+
+      true ->
+        check_deps_cycle(rest, visited ++ Enum.map(visitable, &(&1.id)))
+    end
   end
 
   defp check_unknown_deps(tasks) do
