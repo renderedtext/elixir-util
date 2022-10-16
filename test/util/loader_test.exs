@@ -3,6 +3,10 @@ defmodule Util.LoaderTest do
 
   alias Util.Loader
 
+  test "empty loaders return :ok" do
+    assert {:ok, %{}} = Loader.load([])
+  end
+
   test "it can laod things in parallel" do
     assert {:ok, resources} = Loader.load([
       {:user, fn -> {:ok, "Mike"} end},
