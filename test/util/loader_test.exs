@@ -50,7 +50,7 @@ defmodule Util.LoaderTest do
       {:b, fn _, _ -> {:ok, nil} end, depends_on: [:c]},
     ]
 
-    assert {:error, :unknown_dependency, [:c]} = Loader.load(resources)
+    assert {:error, :unknown_dependency, %{b: [:c]}} = Loader.load(resources)
   end
 
   test "it returns an error if there is a cycle in the deps" do

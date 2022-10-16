@@ -74,12 +74,18 @@ defmodule Util.Loader do
   defp check_unknown_deps(tasks) do
     names = Enum.map(tasks, &(&1.id))
 
-    Enum.find(tasks, fn task ->
-      Enum.any?(task.deps, fn d -> d not in names end)
+    tasks
+    |> Enum.map(fn task ->
+      unknown_deps = Enum.filter(task.deps, fn d -> d not in names end)
+
+      {task.id, unknown_deps}
+    end)
+    |> Enum.filter(fn {id, unknown_deps} ->
+      unknown_deps != []
     end)
     |> case do
-      nil -> :ok
-      _ -> {:error, :unknown_dependency}
+      [] -> :ok
+      e -> {:error, :unknown_dependency, Enum.into(e, %{})}
     end
   end
 
