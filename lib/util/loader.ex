@@ -1,5 +1,6 @@
 defmodule Util.Loader do
   alias __MODULE__.LoadTask
+  alias __MODULE__.Results
 
   def load(definitions) do
     tasks = Enum.map(definitions, &LoadTask.new/1)
@@ -8,25 +9,21 @@ defmodule Util.Loader do
       :ok <- check_unknown_deps(tasks),
       :ok <- check_deps_cycle(tasks)
     ) do
-      execute(tasks, %{})
+      execute(tasks, Results.new())
     end
   end
 
   defp execute(tasks, results) do
-    {runnable, rest} = Enum.split_with(tasks, fn t ->
-      MapSet.subset?(MapSet.new(t.deps), MapSet.new(Map.keys(results)))
-    end)
+    {runnable, rest} = find_runnable(tasks, already_executed: Results.executed_task_ids(results))
 
     if runnable == [] && rest != [] do
       {:error, :unprocessed, Enum.map(rest, fn r -> r.id end)}
     else
-      new_results = Enum.map(runnable, fn t ->
-        deps = extract_deps(t, results)
-
-        LoadTask.execute_async(t, deps)
-      end)
-      |> Task.await_many()
-      |> Enum.into(%{})
+      new_results =
+        runnable
+        |> Enum.map(fn t -> LoadTask.execute_async(t, Results.fetch(results, t.deps)) end)
+        |> Task.await_many()
+        |> Enum.into(%{})
 
       case process(new_results) do
         {:ok, new_results} ->
@@ -57,20 +54,8 @@ defmodule Util.Loader do
     {elem(res, 0), Enum.into(elem(res, 1), %{})}
   end
 
-  defp name(task) do
-    elem(task, 0)
-  end
-
-  defp extract_deps(task, results) do
-    task.deps |> Enum.map(fn d ->
-      {d, Map.get(results, d)}
-    end) |> Enum.into(%{})
-  end
-
   defp check_deps_cycle(tasks, visited \\ []) do
-    {visitable, rest} = Enum.split_with(tasks, fn t ->
-      MapSet.subset?(MapSet.new(t.deps), MapSet.new(visited))
-    end)
+    {visitable, rest} = find_runnable(tasks, already_executed: visited)
 
     cond do
       visitable == [] && rest == [] ->
@@ -100,6 +85,14 @@ defmodule Util.Loader do
       [] -> :ok
       e -> {:error, :unknown_dependency, Enum.into(e, %{})}
     end
+  end
+
+  defp subset?(arr1, arr2) do
+    MapSet.subset?(MapSet.new(arr1), MapSet.new(arr2))
+  end
+
+  defp find_runnable(tasks, already_executed: ids) do
+    Enum.split_with(tasks, fn t -> subset?(t.deps, ids) end)
   end
 
   defmodule LoadTask do
@@ -136,6 +129,15 @@ defmodule Util.Loader do
         2 -> fun.(deps, [])
       end
     end
-
   end
+
+  defmodule Results do
+    def new(), do: %{}
+    def executed_task_ids(r), do: Map.keys(r)
+
+    def fetch(r, ids) do
+      Enum.filter(r, fn {k, v} -> k in ids end) |> Enum.into(%{})
+    end
+  end
+
 end
