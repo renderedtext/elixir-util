@@ -115,20 +115,27 @@ defmodule Util.Loader do
       }
     end
 
-    def execute(task, deps) do
-      case :erlang.fun_info(task.fun)[:arity] do
-        0 -> task.fun.()
-        1 -> task.fun.(deps)
-        2 -> task.fun.(deps, [])
+    def execute_async(task, deps) do
+      Task.async(fn ->
+        execute(task, deps)
+      end)
+    end
+
+    defp execute(task, deps) do
+      Wormhole.capture(fn -> dispatch_call(task.fun, deps) end)
+      |> case do
+        {:ok, res} -> {task.id, res}
+        e -> {task.id, e}
       end
     end
 
-    def execute_async(task, deps) do
-      Task.async(fn ->
-        res = execute(task, deps)
-
-        {task.id, res}
-      end)
+    defp dispatch_call(fun, deps) do
+      case :erlang.fun_info(fun)[:arity] do
+        0 -> fun.()
+        1 -> fun.(deps)
+        2 -> fun.(deps, [])
+      end
     end
+
   end
 end

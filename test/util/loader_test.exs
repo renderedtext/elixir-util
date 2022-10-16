@@ -50,8 +50,8 @@ defmodule Util.LoaderTest do
 
   test "it returns an error if an unknown dependency is required" do
     resources = [
-      {:a, fn _, _ -> {:ok, nil} end},
-      {:b, fn _, _ -> {:ok, nil} end, depends_on: [:c]},
+      {:a, fn -> {:ok, nil} end},
+      {:b, fn -> {:ok, nil} end, depends_on: [:c]},
     ]
 
     assert {:error, :unknown_dependency, %{b: [:c]}} = Loader.load(resources)
@@ -59,20 +59,29 @@ defmodule Util.LoaderTest do
 
   test "it returns an error if there is a cycle in the deps" do
     resources = [
-      {:a, fn _, _ -> {:ok, nil} end},
-      {:b, fn _, _ -> {:ok, nil} end, depends_on: [:c]},
-      {:c, fn _, _ -> {:ok, nil} end, depends_on: [:b]},
+      {:a, fn -> {:ok, nil} end},
+      {:b, fn -> {:ok, nil} end, depends_on: [:c]},
+      {:c, fn -> {:ok, nil} end, depends_on: [:b]},
     ]
 
     assert {:error, :dependency_cycle} = Loader.load(resources)
 
     resources = [
-      {:a, fn _, _ -> {:ok, nil} end},
-      {:b, fn _, _ -> {:ok, nil} end, depends_on: [:d]},
-      {:c, fn _, _ -> {:ok, nil} end, depends_on: [:b]},
-      {:d, fn _, _ -> {:ok, nil} end, depends_on: [:c]},
+      {:a, fn -> {:ok, nil} end},
+      {:b, fn -> {:ok, nil} end, depends_on: [:d]},
+      {:c, fn -> {:ok, nil} end, depends_on: [:b]},
+      {:d, fn -> {:ok, nil} end, depends_on: [:c]},
     ]
 
     assert {:error, :dependency_cycle} = Loader.load(resources)
+  end
+
+  test "it handles raised exceptions" do
+    assert {:error, resources} = Loader.load([
+      {:a, fn -> raise "failure" end},
+      {:b, fn -> {:ok, nil} end, depends_on: [:a]},
+    ])
+
+    assert resources.a == {:error, {:shutdown, %RuntimeError{message: "failure"}}}
   end
 end
