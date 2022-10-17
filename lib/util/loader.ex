@@ -31,10 +31,18 @@ defmodule Util.Loader do
       {:error, :unprocessed, Enum.map(rest, fn r -> r.id end)}
     else
       new_results =
-        runnable
-        |> Enum.map(fn t -> LoadTask.execute_async(t, Results.fetch(results, t.deps)) end)
-        |> Task.await_many()
-        |> Enum.into(%{})
+        try do
+          runnable
+          |> Enum.map(fn t -> LoadTask.execute_async(t, Results.fetch(results, t.deps)) end)
+          |> Task.await_many()
+          |> Enum.into(%{})
+        rescue
+          e ->
+            IO.inspect("AAAAAAAAAAAAAAAAA", label: "\n\e[33m=== DEBUG (#{__ENV__.module}:#{__ENV__.line}) ===\e[0m\n")
+            IO.inspect(e, label: "\n\e[33m=== DEBUG (#{__ENV__.module}:#{__ENV__.line}) ===\e[0m\n")
+            %{}
+        end
+
 
       case process(new_results) do
         {:ok, new_results} ->
@@ -143,7 +151,7 @@ defmodule Util.Loader do
       Wormhole.capture(fn -> dispatch_call(task.fun, deps) end, timeout: task.timeout)
       |> case do
         {:ok, res} -> {task.id, res}
-        e -> {task.id, e}
+        e -> raise "fail_fast"
       end
     end
 

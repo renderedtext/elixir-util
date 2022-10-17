@@ -109,4 +109,14 @@ defmodule Util.LoaderTest do
 
     assert resources.a == {:error, {:timeout, 100}}
   end
+
+  test "it support fail-fast" do
+    assert {:error, resources} = Loader.load([
+      {:a, fn -> :timer.sleep(10000) end},
+      {:b, fn -> raise "aaa" end}
+    ])
+
+    assert resources.b == {:error, {:shutdown, %RuntimeError{message: "aaa"}}}
+    assert resources.a == "AAA"
+  end
 end
