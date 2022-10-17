@@ -84,4 +84,29 @@ defmodule Util.LoaderTest do
 
     assert resources.a == {:error, {:shutdown, %RuntimeError{message: "failure"}}}
   end
+
+  test "it respects the timeout" do
+    assert {:error, {:timeout, 100}} = Loader.load([
+      {:a, fn -> :timer.sleep(300) end},
+      {:b, fn -> {:ok, nil} end, depends_on: [:a]},
+    ], whole_operation_timeout: 100)
+  end
+
+  test "it respects per task timeout" do
+    assert {:error, resources} = Loader.load([
+      {:a, fn -> :timer.sleep(300) end, timeout: 100},
+      {:b, fn -> {:ok, nil} end, depends_on: [:a]},
+    ])
+
+    assert resources.a == {:error, {:timeout, 100}}
+  end
+
+  test "it respects per task timeout defined on global level" do
+    assert {:error, resources} = Loader.load([
+      {:a, fn -> :timer.sleep(300) end},
+      {:b, fn -> {:ok, nil} end, depends_on: [:a]},
+    ], per_resource_timeout: 100)
+
+    assert resources.a == {:error, {:timeout, 100}}
+  end
 end

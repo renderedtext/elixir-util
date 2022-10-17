@@ -2,14 +2,25 @@ defmodule Util.Loader do
   alias __MODULE__.LoadTask
   alias __MODULE__.Results
 
-  def load(definitions) do
-    tasks = Enum.map(definitions, &LoadTask.new/1)
+  def load(definitions, opts \\ []) do
+    global_timeout = Keyword.get(opts, :whole_operation_timeout, :infinity)
+    per_resource_timeout = Keyword.get(opts, :per_resource_timeout, :infinity)
 
-    with(
-      :ok <- check_unknown_deps(tasks),
-      :ok <- check_deps_cycle(tasks)
-    ) do
-      execute(tasks, Results.new())
+    Wormhole.capture(fn ->
+      tasks = Enum.map(definitions, fn definition ->
+        LoadTask.new(definition, per_resource_timeout: per_resource_timeout)
+      end)
+
+      with(
+        :ok <- check_unknown_deps(tasks),
+        :ok <- check_deps_cycle(tasks)
+      ) do
+        execute(tasks, Results.new())
+      end
+    end, timeout: global_timeout)
+    |> case do
+      {:ok, res} -> res
+      e -> e
     end
   end
 
@@ -96,15 +107,29 @@ defmodule Util.Loader do
   end
 
   defmodule LoadTask do
-    def new({id, fun}) do
-      new({id, fun, []})
+    def new({id, fun}, opts) do
+      new({id, fun, []}, opts)
     end
 
-    def new({id, fun, opts}) do
+    def new({id, fun, task_opts}, opts) do
+      per_resource_timeout = Keyword.get(opts, :per_resource_timeout, :infinity)
+      timeout = Keyword.get(task_opts, :timeout, :infinity)
+
+      # localy defined timeout always takes priority over the ones
+      # defined on the whole load operation
+      timeout =
+        if timeout == :infinity do
+          per_resource_timeout
+        else
+          timeout
+        end
+
+
       %{
         id: id,
         fun: fun,
-        deps: Keyword.get(opts, :depends_on, [])
+        deps: Keyword.get(task_opts, :depends_on, []),
+        timeout: timeout
       }
     end
 
@@ -115,7 +140,7 @@ defmodule Util.Loader do
     end
 
     defp execute(task, deps) do
-      Wormhole.capture(fn -> dispatch_call(task.fun, deps) end)
+      Wormhole.capture(fn -> dispatch_call(task.fun, deps) end, timeout: task.timeout)
       |> case do
         {:ok, res} -> {task.id, res}
         e -> {task.id, e}
