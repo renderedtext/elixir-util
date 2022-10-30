@@ -1,5 +1,5 @@
 defmodule Util.Loader do
-  alias __MODULE__.LoadTask
+  alias __MODULE__.Task
   alias __MODULE__.Results
 
   def load(definitions, opts \\ []) do
@@ -8,7 +8,9 @@ defmodule Util.Loader do
 
     Wormhole.capture(fn ->
       tasks = Enum.map(definitions, fn definition ->
-        LoadTask.new(definition, per_resource_timeout: per_resource_timeout)
+        {id, fun, opts} = definition
+
+        Task.new(id, fun, opts)
       end)
 
       with(
@@ -33,7 +35,7 @@ defmodule Util.Loader do
       new_results =
         try do
           runnable
-          |> Enum.map(fn t -> LoadTask.execute_async(t, Results.fetch(results, t.deps)) end)
+          |> Enum.map(fn t -> Task.execute_async(t, Results.fetch(results, t.deps)) end)
           |> Task.await_many()
           |> Enum.into(%{})
         rescue
@@ -42,7 +44,6 @@ defmodule Util.Loader do
             IO.inspect(e, label: "\n\e[33m=== DEBUG (#{__ENV__.module}:#{__ENV__.line}) ===\e[0m\n")
             %{}
         end
-
 
       case process(new_results) do
         {:ok, new_results} ->
@@ -114,55 +115,6 @@ defmodule Util.Loader do
     Enum.split_with(tasks, fn t -> subset?(t.deps, ids) end)
   end
 
-  defmodule LoadTask do
-    def new({id, fun}, opts) do
-      new({id, fun, []}, opts)
-    end
-
-    def new({id, fun, task_opts}, opts) do
-      per_resource_timeout = Keyword.get(opts, :per_resource_timeout, :infinity)
-      timeout = Keyword.get(task_opts, :timeout, :infinity)
-
-      # localy defined timeout always takes priority over the ones
-      # defined on the whole load operation
-      timeout =
-        if timeout == :infinity do
-          per_resource_timeout
-        else
-          timeout
-        end
-
-
-      %{
-        id: id,
-        fun: fun,
-        deps: Keyword.get(task_opts, :depends_on, []),
-        timeout: timeout
-      }
-    end
-
-    def execute_async(task, deps) do
-      Task.async(fn ->
-        execute(task, deps)
-      end)
-    end
-
-    defp execute(task, deps) do
-      Wormhole.capture(fn -> dispatch_call(task.fun, deps) end, timeout: task.timeout)
-      |> case do
-        {:ok, res} -> {task.id, res}
-        e -> raise "fail_fast"
-      end
-    end
-
-    defp dispatch_call(fun, deps) do
-      case :erlang.fun_info(fun)[:arity] do
-        0 -> fun.()
-        1 -> fun.(deps)
-        2 -> fun.(deps, [])
-      end
-    end
-  end
 
   defmodule Results do
     def new(), do: %{}
