@@ -12,3 +12,7 @@ Just add it to your `mix.exs` file:
 {:util, github: "renderedtext/elixir-util"}
 ```
 and then you can use all modules under `Util` namespace.
+
+## License
+
+This software is licensed under [the Apache 2.0 license](LICENSE).
