@@ -20,6 +20,7 @@ defmodule Util.Mixfile do
       {:wormhole, "~> 2.2"},
       {:protobuf, "~> 0.5"},
       {:mock, "~> 0.3.0", only: :test},
+      {:uuid, "~> 1.1"}
     ]
   end
 end
